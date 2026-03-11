@@ -251,11 +251,29 @@ if st.button("Evaluate Medicaid Eligibility & Calculate Subsidy", type="primary"
 
         with res_col2:
             st.markdown("### Cost Driver Analysis (SHAP)")
+            
+            # 1. Force Matplotlib to use strict, formal clinical styling
+            plt.rcParams['font.family'] = 'sans-serif'
+            plt.rcParams['font.sans-serif'] = ['Arial', 'Helvetica']
+            plt.rcParams['text.color'] = '#1a252f'
+            plt.rcParams['axes.labelcolor'] = '#1a252f'
+            plt.rcParams['xtick.color'] = '#1a252f'
+            plt.rcParams['ytick.color'] = '#1a252f'
+            plt.rcParams['axes.spines.top'] = False
+            plt.rcParams['axes.spines.right'] = False
+            
             explainer = shap.Explainer(final_rf_model, X_train_selected)
             shap_values = explainer(new_patient_df)
             
             fig, ax = plt.subplots(figsize=(8, 4))
-            shap.plots.waterfall(shap_values[0], show=False, max_display=8)
+            
+            # 2. Switch to a Bar plot to allow strict color overrides (Navy Blue)
+            shap.plots.bar(shap_values[0], show=False, max_display=8, color="#2c3e50")
+            
+            # 3. Clean up the axis labels for presentation
+            plt.xlabel("Impact on Medicaid Allocation Expectation ($)")
             plt.tight_layout()
+            
             st.pyplot(fig)
+
 
