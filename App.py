@@ -90,12 +90,12 @@ with st.sidebar:
 # -------------------------------------------------------------------------
 st.markdown("""
     <h1 style='margin-bottom: 0px;'>
-        <a href="https://github.com/imanuelsaifool/medicaid-aid" target="_blank" style="text-decoration: none; color: inherit;" title="View Source Code on GitHub">
+        <a href="https://github.com/ImanuelSaifool/Data-Science-PROJECT-LAB-/tree/main" target="_blank" style="text-decoration: none; color: inherit;" title="View Source Code on GitHub">
             Medicaid Allocation Prediction Tool
         </a>
     </h1>
     <p style='font-family: Arial, sans-serif; color: #495057; font-weight: 600; font-size: 1.1rem; margin-top: 5px;'>
-        Team 8 | <a href="https://github.com/imanuelsaifool" target="_blank" style="color: #2c3e50; text-decoration: underline;" title="View GitHub Profile">By Team 8 ↗</a>
+        Team 8 |
     </p>
 """, unsafe_allow_html=True)
 st.divider()
@@ -283,6 +283,7 @@ if st.button("Evaluate Medicaid Eligibility & Calculate Subsidy", type="primary"
             plt.tight_layout()
             
             st.pyplot(fig)
+
 
 
 
