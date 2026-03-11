@@ -89,7 +89,7 @@ with st.sidebar:
 # MAIN DASHBOARD
 # -------------------------------------------------------------------------
 st.title("Proactive Medicaid Allocation & Financial Toxicity Model")
-st.markdown("Department of Biostatistics | Medicaid Decision Support System")
+st.markdown("Medicaid Decision Support System")
 st.divider()
 
 col1, col2, col3 = st.columns(3, gap="medium")
@@ -258,3 +258,4 @@ if st.button("Evaluate Medicaid Eligibility & Calculate Subsidy", type="primary"
             shap.plots.waterfall(shap_values[0], show=False, max_display=8)
             plt.tight_layout()
             st.pyplot(fig)
+
