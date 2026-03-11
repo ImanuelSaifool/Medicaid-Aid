@@ -4,11 +4,62 @@ import numpy as np
 import shap
 import matplotlib.pyplot as plt
 import joblib
+import warnings
+
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # -------------------------------------------------------------------------
-# PAGE SETUP & ASSETS
+# PAGE SETUP & FORMAL CLINICAL THEME
 # -------------------------------------------------------------------------
-st.set_page_config(page_title="Proactive Medicaid Subsidy Calculator", layout="wide")
+st.set_page_config(page_title="MEPS Financial Toxicity Tool", layout="wide")
+
+st.markdown("""
+    <style>
+    /* Base font to standard enterprise sans-serif */
+    html, body, [class*="st-"] {
+        font-family: Arial, Helvetica, sans-serif;
+    }
+    /* Formal serif for all headers */
+    h1, h2, h3, h4 {
+        font-family: 'Georgia', serif !important;
+        color: #1a252f !important;
+        font-weight: 500 !important;
+        border-bottom: 1px solid #c0c0c0;
+        padding-bottom: 4px;
+        margin-bottom: 16px;
+    }
+    /* Square off all buttons and inputs for a strict software feel */
+    .stButton>button {
+        background-color: #2c3e50;
+        color: #ffffff;
+        border-radius: 0px;
+        border: none;
+        font-family: Arial, sans-serif;
+        font-weight: 600;
+        padding: 10px 20px;
+    }
+    .stButton>button:hover {
+        background-color: #1a252f;
+        color: #ffffff;
+    }
+    div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
+        border-radius: 0px !important;
+    }
+    /* Override Streamlit's bright red and green boxes to slate gray */
+    div[data-testid="stAlert"] {
+        background-color: #f8f9fa;
+        color: #212529;
+        border: 1px solid #ced4da;
+        border-left: 5px solid #495057;
+        border-radius: 0px;
+    }
+    /* Metric styling */
+    div[data-testid="stMetricValue"] {
+        font-family: 'Georgia', serif;
+        color: #1a252f;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 @st.cache_resource
 def load_model_data():
@@ -20,66 +71,78 @@ try:
     selected_features_list = model_data['selected_features']
     X_train_selected = model_data['X_train_selected']
 except FileNotFoundError:
-    st.error("Error: 'meps_model_data.pkl' not found. Please ensure it is uploaded to your GitHub repository.")
+    st.error("System Error: 'meps_model_data.pkl' missing from deployment directory.")
     st.stop()
 
 # -------------------------------------------------------------------------
-# UI FRONTEND
+# SIDEBAR: EHR CONTEXT
 # -------------------------------------------------------------------------
-st.title("🏥 Proactive Medicaid Subsidy Calculator")
-st.markdown("### A Clinical Decision Support Tool for Financial Toxicity Prevention")
+with st.sidebar:
+    st.markdown("### Patient Record Details")
+    st.text_input("Medical Record Number (MRN)", value="MRN-84729", disabled=True)
+    st.text_input("Attending Physician", value="G. House, MD", disabled=True)
+    st.divider()
+    st.markdown("**Assessment Objective:**")
+    st.caption("Quantitative evaluation of treatment non-adherence risk driven by financial toxicity, utilizing historical MEPS modeling.")
+
+# -------------------------------------------------------------------------
+# MAIN DASHBOARD
+# -------------------------------------------------------------------------
+st.title("Oncology Subsidy Allocation & Financial Toxicity Risk Model")
+st.markdown("Department of Biostatistics | Clinical Decision Support System")
 st.divider()
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3 = st.columns(3, gap="medium")
 
 with col1:
-    st.header("Patient Demographics")
-    patient_age = st.number_input("Age", min_value=0, max_value=120, value=55)
-    patient_sex = st.radio("Assigned Sex", options=[1, 2], format_func=lambda x: "Male" if x == 1 else "Female")
+    st.markdown("### I. Demographics")
+    patient_age = st.number_input("Age (Years)", min_value=0, max_value=120, value=55)
+    patient_sex = st.radio("Sex at Birth", options=[1, 2], format_func=lambda x: "Male" if x == 1 else "Female", horizontal=True)
     
-    region_choice = st.selectbox("US Region", options=["Northeast", "Midwest", "South", "West"])
+    region_choice = st.selectbox("Geographic Region", options=["Northeast", "Midwest", "South", "West"])
     region_map = {"Northeast": 1, "Midwest": 2, "South": 3, "West": 4}
     region_idx = region_map[region_choice]
     
-    st.subheader("Coverage Status")
-    patient_vet = 1 if st.checkbox("US Veteran") else 0
-    patient_mil = 1 if st.checkbox("Military Family (Tricare)") else 0
-    patient_fed = 1 if st.checkbox("Federal Worker") else 0
+    st.markdown("### II. Coverage Parameters")
+    patient_vet = 1 if st.checkbox("Veterans Affairs (VA)") else 0
+    patient_mil = 1 if st.checkbox("Military / Tricare") else 0
+    patient_fed = 1 if st.checkbox("Federal Employee (FEHB)") else 0
 
 with col2:
-    st.header("Financial & SDoH")
-    patient_faminc = st.number_input("Family Income ($)", min_value=0.0, value=45000.0, step=1000.0)
-    patient_totslf = st.number_input("Out-of-Pocket Costs ($)", min_value=0.0, value=2500.0, step=100.0)
+    st.markdown("### III. Socioeconomic Data")
+    patient_faminc = st.number_input("Annual Family Income (USD)", min_value=0.0, value=45000.0, step=1000.0)
+    patient_totslf = st.number_input("Current Out-of-Pocket Burden (USD)", min_value=0.0, value=2500.0, step=100.0)
     
-    patient_famsze = st.number_input("Family Size", min_value=1, value=2)
-    patient_pov = st.slider("Poverty Category", min_value=1, max_value=5, value=3, help="1=Negative/Poor, 5=High Income")
+    patient_famsze = st.number_input("Household Size", min_value=1, value=2)
+    patient_pov = st.slider("Federal Poverty Category (1=Poor, 5=High)", min_value=1, max_value=5, value=3)
     
-    st.subheader("Hardship Flags")
-    patient_foodst = 1 if st.checkbox("Receives Food Stamps/SNAP") else 2
-    patient_adl = 1 if st.checkbox("Needs ADL Help (Bathing, etc.)") else 2
-    patient_ddnwrk = st.number_input("Days Missed Work", min_value=0, value=0)
-    patient_phq2 = st.slider("PHQ-2 Depression Score", min_value=0, max_value=6, value=0)
+    st.markdown("### IV. SDoH Risk Factors")
+    patient_foodst = 1 if st.checkbox("Food Insecurity (SNAP)") else 2
+    patient_adl = 1 if st.checkbox("ADL Assistance Required") else 2
+    patient_ddnwrk = st.number_input("Days Missed Work (Illness)", min_value=0, value=0)
+    patient_phq2 = st.slider("PHQ-2 Depression Screener", min_value=0, max_value=6, value=0)
 
 with col3:
-    st.header("Clinical Profile")
+    st.markdown("### V. Clinical Pathology")
     cancer_list = ["Bladder", "Breast", "Cervix", "Colon", "Lung", "Lymphoma", "Melanoma", "Other", "Prostate", "Skin (Non-Melanoma)", "Skin (Unknown)", "Uterus", "None"]
-    cancer_choice = st.selectbox("Primary Cancer Diagnosis", options=cancer_list)
+    cancer_choice = st.selectbox("Primary Oncology Diagnosis", options=cancer_list, index=3) 
     
     disease_list = ["Diabetes", "High Blood Pressure", "Coronary Heart Disease", "Angina", "Heart Attack", "Other Heart Disease", "Stroke", "High Cholesterol", "Emphysema", "Asthma", "Chronic Bronchitis", "Arthritis"]
-    selected_diseases = st.multiselect("Comorbidities", options=disease_list)
+    selected_diseases = st.multiselect("Documented Comorbidities", options=disease_list)
     
-    st.subheader("Healthcare Utilization (Past 12 Mos)")
-    patient_ipdis = st.number_input("Hospital Discharges", min_value=0, value=0)
-    patient_ipngtd = st.number_input("Total Hospital Nights", min_value=0, value=0)
-    patient_ertot = st.number_input("ER Visits", min_value=0, value=0)
+    st.markdown("### VI. Utilization (Trailing 12 Mo)")
+    patient_ipdis = st.number_input("Inpatient Admissions", min_value=0, value=0)
+    patient_ipngtd = st.number_input("Total Inpatient Days", min_value=0, value=0)
+    patient_ertot = st.number_input("Emergency Department Visits", min_value=0, value=0)
 
 # -------------------------------------------------------------------------
-# BACKEND CALCULATION LOGIC
+# BACKEND & RESULTS
 # -------------------------------------------------------------------------
 st.divider()
-if st.button("Calculate Statistical Subsidy", type="primary", use_container_width=True):
-    with st.spinner("Processing clinical profile..."):
+if st.button("Execute Statistical Subsidy Calculation", type="primary", use_container_width=True):
+    with st.spinner("Processing data vector..."):
         
+        # Base Logic
         catastrophic_cost = 1 if patient_totslf > (0.10 * patient_faminc) else 0
         patient_medicare = 1 if patient_age >= 65 else 0
         patient_chip = 1 if patient_age <= 19 else 0
@@ -92,13 +155,19 @@ if st.button("Calculate Statistical Subsidy", type="primary", use_container_widt
 
         disease_features = ["DIABDX", "HIBPDX", "CHDDX", "ANGIDX", "MIDX", "OHRTDX", "STRKDX", "CHOLDX", "EMPHDX", "ASTHDX", "CHBRON", "ARTHDX"]
         patient_diseases = {col: 2 for col in disease_features}
-        patient_age_diag = {col.replace("DX", "AGED"): 0 for col in disease_features}
-        
+        patient_age_diag = {}
+        for col in disease_features:
+            if col != "CHBRON": 
+                age_col = col.replace("DX", "AGED")
+                patient_age_diag[age_col] = 0
+                
         for d in selected_diseases:
             idx = disease_list.index(d)
             feat_name = disease_features[idx]
             patient_diseases[feat_name] = 1
-            patient_age_diag[feat_name.replace("DX", "AGED")] = patient_age 
+            if feat_name != "CHBRON":
+                age_col = feat_name.replace("DX", "AGED")
+                patient_age_diag[age_col] = patient_age 
             
         total_visits_calc = patient_ertot 
         inpatient_burden_calc = patient_ipdis + patient_ipngtd
@@ -139,11 +208,17 @@ if st.button("Calculate Statistical Subsidy", type="primary", use_container_widt
         patient_data.update({k: [v] for k, v in patient_diseases.items()})
         patient_data.update({k: [v] for k, v in patient_age_diag.items()})
         
-        for col in selected_features_list:
+        if hasattr(final_rf_model, "feature_names_in_"):
+            expected_features = final_rf_model.feature_names_in_
+        else:
+            expected_features = selected_features_list
+            
+        for col in expected_features:
             if col not in patient_data:
                 patient_data[col] = [0]
                 
-        new_patient_df = pd.DataFrame(patient_data)[selected_features_list]
+        new_patient_df = pd.DataFrame(patient_data)[expected_features]
+        new_patient_df_selected = new_patient_df.values
         
         approx_fpl = 14580 + (5140 * (max(1, patient_famsze) - 1))
         medicaid_income_limit = approx_fpl * 1.38 
@@ -155,20 +230,30 @@ if st.button("Calculate Statistical Subsidy", type="primary", use_container_widt
         if patient_chip == 1 and patient_faminc > (approx_fpl * 3.0):
             is_medicaid_eligible = False
 
-        if is_medicaid_eligible:
-            recommended_subsidy = final_rf_model.predict(new_patient_df)[0]
-            recommended_subsidy = max(0, recommended_subsidy)
-            st.success(f"### Computed Statistical Subsidy Expectation: ${recommended_subsidy:,.2f}")
-            st.caption("Estimated public burden based on full-year patient realities and historical MEPS data.")
-        else:
-            st.error("### Computed Statistical Subsidy Expectation: $0.00")
-            st.caption("FLAG: Patient income exceeds Medicaid/CHIP eligibility thresholds for their demographic.")
-
-        st.markdown("### Cost Drivers Analysis (SHAP)")
-        explainer = shap.Explainer(final_rf_model, X_train_selected)
-        shap_values = explainer(new_patient_df)
+        st.markdown("---")
+        res_col1, res_col2 = st.columns([1, 2])
         
-        fig, ax = plt.subplots(figsize=(10, 6))
-        shap.plots.waterfall(shap_values[0], show=False)
-        plt.tight_layout()
-        st.pyplot(fig)
+        with res_col1:
+            st.markdown("### Decision Output")
+            if is_medicaid_eligible:
+                recommended_subsidy = final_rf_model.predict(new_patient_df_selected)[0]
+                recommended_subsidy = max(0, recommended_subsidy)
+                st.metric(label="Target Subsidy Allocation", value=f"${recommended_subsidy:,.2f}")
+                
+                if patient_phq2 > 2 or catastrophic_cost == 1:
+                    st.info("Clinical Note: Patient flags positive for depressive symptoms or catastrophic out-of-pocket costs. Preemptive intervention recommended to maintain treatment adherence.")
+                else:
+                    st.info("Clinical Note: Standard allocation path. No acute SDoH interventions flagged.")
+            else:
+                st.metric(label="Target Subsidy Allocation", value="$0.00")
+                st.warning("Flag: Patient income exceeds statutory eligibility thresholds for Medicaid/CHIP allocation.")
+
+        with res_col2:
+            st.markdown("### Cost Driver Analysis (SHAP)")
+            explainer = shap.Explainer(final_rf_model, X_train_selected)
+            shap_values = explainer(new_patient_df)
+            
+            fig, ax = plt.subplots(figsize=(8, 4))
+            shap.plots.waterfall(shap_values[0], show=False, max_display=8)
+            plt.tight_layout()
+            st.pyplot(fig)
