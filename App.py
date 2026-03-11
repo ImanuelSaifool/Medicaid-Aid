@@ -95,7 +95,7 @@ st.markdown("""
         </a>
     </h1>
     <p style='font-family: Arial, sans-serif; color: #495057; font-weight: 600; font-size: 1.1rem; margin-top: 5px;'>
-        Team 8 |
+        Team 8
     </p>
 """, unsafe_allow_html=True)
 st.divider()
@@ -283,6 +283,7 @@ if st.button("Evaluate Medicaid Eligibility & Calculate Subsidy", type="primary"
             plt.tight_layout()
             
             st.pyplot(fig)
+
 
 
 
